@@ -1,0 +1,53 @@
+import {
+    LayoutDashboard,
+    Users,
+    Briefcase,
+    Calendar,
+    Settings,
+    LogOut,
+    Bell,
+    Search,
+    Filter,
+    Plus,
+    MoreHorizontal,
+    ChevronRight,
+    TrendingUp,
+    FileText,
+    CheckCircle,
+    XCircle,
+    Clock,
+    Menu,
+    X,
+    Sparkles,
+    UploadCloud,
+    Loader2,
+    Video
+} from 'lucide-react';
+
+export const Icons = {
+    Dashboard: LayoutDashboard,
+    Users: Users,
+    Briefcase: Briefcase,
+    Calendar: Calendar,
+    Settings: Settings,
+    LogOut: LogOut,
+    Bell: Bell,
+    Search: Search,
+    Filter: Filter,
+    Plus: Plus,
+    More: MoreHorizontal,
+    ChevronRight: ChevronRight,
+    TrendingUp: TrendingUp,
+    FileText: FileText,
+    Check: CheckCircle,
+    Close: XCircle,
+    Clock: Clock,
+    Menu: Menu,
+    X: X,
+    Sparkles: Sparkles,
+    Upload: UploadCloud,
+    Loader: Loader2,
+    Video: Video
+};
+
+export type IconName = keyof typeof Icons;
