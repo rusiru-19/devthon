@@ -4,12 +4,15 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const http = require('http');
 const { Server } = require('socket.io');
-
+const multer = require('multer');
+const mammoth = require('mammoth');
+const { v4: uuidv4 } = require('uuid');
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const server = http.createServer(app);
+const upload = multer({ storage: multer.memoryStorage() });
 
 const io = new Server(server, {
   cors: {
@@ -71,6 +74,41 @@ io.on('connection', (socket) => {
     console.log('🔴 User disconnected:', socket.id);
   });
 });
+
+// ================== FILE UPLOAD & PROCESSING ==================
+app.post('/upload', upload.array('cvs'), async (req, res) => {
+  try {
+    const results = [];
+
+    for (const file of req.files) {
+      const candidateId = uuidv4();
+
+      // Extract text from DOCX
+      const { value: resumeText } = await mammoth.extractRawText({
+        buffer: file.buffer
+      });
+
+   
+
+      // Save extracted text to Firestore
+      await admin.firestore().collection('candidates').doc(candidateId).set({
+        resumeText,
+        fileName: file.originalname,
+        uploadedAt: new Date(),
+        storagePath: `cvs/${candidateId}.docx`,
+      });
+
+      results.push({ candidateId, fileName: file.originalname });
+    }
+
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Bulk upload failed' });
+  }
+});
+
+
 
 // ================== START SERVER ==================
 

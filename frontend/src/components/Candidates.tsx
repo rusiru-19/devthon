@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MOCK_CANDIDATES } from '@/lib/constants';
 import { Candidate, AIAnalysisResult } from '@/lib/types';
 import { Icons } from './Icon';
@@ -34,6 +34,7 @@ function CandidateDrawer({ candidate, onClose }: CandidateDrawerProps) {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end pointer-events-none">
@@ -179,6 +180,19 @@ export function Candidates() {
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
+        const fileInputRef = useRef<HTMLInputElement>(null);
+
+            const handleBulkUpload = async (files: FileList) => {
+            const formData = new FormData();
+            Array.from(files).forEach(file => formData.append('cvs', file));
+            const url = process.env.NEXT_PUBLIC_API_URL
+            await fetch(`${url}/upload`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            alert('CVs uploaded successfully');
+            };
 
     return (
         <>
@@ -188,11 +202,24 @@ export function Candidates() {
                         <h1 className="text-2xl font-bold text-slate-900">Candidates</h1>
                         <p className="text-slate-500">Manage and track your applicant pipeline.</p>
                     </div>
-                    <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm">
-                        <Icons.Upload size={18} />
-                        Bulk Upload CVs
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg"
+                    >
+                    <Icons.Upload size={18} />
+                    Bulk Upload CVs
                     </button>
-                </div>
+
+                    <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".docx"
+                    multiple
+                    hidden
+                    onChange={(e) => e.target.files && handleBulkUpload(e.target.files)}
+                    />
+
+                </div> 
 
                 {/* Filters */}
                 <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">

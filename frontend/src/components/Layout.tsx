@@ -48,7 +48,7 @@ export function Layout({ children, user, onLogout, activePage, onNavigate }: Lay
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                             <Icons.Sparkles className="text-white w-5 h-5" />
                         </div>
-                        <span className="text-xl font-bold text-slate-800">TalentFlow</span>
+                        <span className="text-xl font-bold text-slate-800">Recruiter AI</span>
                     </div>
                     <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-500">
                         <Icons.X size={20} />
