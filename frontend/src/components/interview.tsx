@@ -11,7 +11,7 @@ export default function VideoCallPage() {
   const peerRef = useRef<RTCPeerConnection | null>(null);
 
   const roomId = "room-123"; // same room on both clients
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL;;
+  const url = process.env.NEXT_PUBLIC_API_URL;;
   useEffect(() => {
     socketRef.current = io(url);
 

@@ -11,9 +11,10 @@ export default function Meeting() {
   const peerRef = useRef<RTCPeerConnection | null>(null);
 
   const roomId = "room-123"; // same room on both clients
+  const url = process.env.NEXT_PUBLIC_API_URL;;
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:3001");
+    socketRef.current = io(url!); 
 
     peerRef.current = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],

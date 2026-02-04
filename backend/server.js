@@ -18,7 +18,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = 3001;
+const PORT = 80;
 
 admin.initializeApp({
   credential: admin.credential.cert(require('./serviceAccountKey.json')),
