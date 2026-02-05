@@ -1,26 +1,47 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const admin = require('firebase-admin');
 const http = require('http');
 const { Server } = require('socket.io');
 const multer = require('multer');
 const mammoth = require('mammoth');
 const { v4: uuidv4 } = require('uuid');
+const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
+const admin = require('firebase-admin');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// ================== INITIAL SETUP ==================
 const app = express();
-const nodemailer = require("nodemailer");
-const bodyParser = require("body-parser");
-
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const model = genAI.getGenerativeModel({
-  model: "models/gemini-2.5-flash",
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
 });
+const upload = multer({ storage: multer.memoryStorage() });
+const PORT = 3000;
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+
+// Google Generative AI Setup
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: 'models/gemini-2.5-flash',
+});
+
+// Middleware
 app.use(express.json());
 app.use(cors());
 app.use(bodyParser.json());
 
+// ================== CONSTANTS ==================
 const BASE_PROMPT = `
 You are a professional CV evaluator and recruiter. Analyze CVs objectively and like a real hiring manager.
 
@@ -35,75 +56,31 @@ Rules:
 Follow this exact JSON structure:
 
 { "candidate": { "full_name": null, "email": null, "phone": null, "location": null, "linkedin": null, "portfolio": null }, "target_role": null, "summary": null, "skills": { "technical": [], "soft": [], "tools": [] }, "experience": [ { "job_title": null, "company": null, "duration": null, "key_points": [] } ], "education": [ { "degree": null, "institution": null, "year": null } ], "certifications": [], "strengths": [], "weaknesses": [], "improvement_suggestions": [], "cv_score": { "score": 0, "rating": null } }
-
 `;
 
+// ================== ROUTES ==================
 
-const server = http.createServer(app);
-const upload = multer({ storage: multer.memoryStorage() });
-
-const io = new Server(server, {
-  cors: {
-    origin: '*', 
-    methods: ['GET', 'POST']
-  }
-});
-
-const PORT = 3000;
-
-admin.initializeApp({
-  credential: admin.credential.cert(require('./serviceAccountKey.json')),
-});
-
-
+// --- Health Check ---
 app.get('/', (req, res) => {
   res.json({ message: 'Express server running', timestamp: new Date() });
 });
 
-// Login route
+// --- Authentication / Login ---
 app.post('/login', async (req, res) => {
   const { token } = req.body;
-
   try {
     const decoded = await admin.auth().verifyIdToken(token);
     res.status(200).json({
       message: 'Login verified',
       uid: decoded.uid,
-      email: decoded.email
+      email: decoded.email,
     });
   } catch {
     res.status(401).json({ error: 'Unauthorized' });
   }
 });
 
-// ================== SOCKET.IO ==================
-
-io.on('connection', (socket) => {
-  console.log('🟢 User connected:', socket.id);
-
-  socket.on('join-room', (roomId) => {
-    socket.join(roomId);
-    console.log(`User joined room ${roomId}`);
-  });
-
-  socket.on('offer', ({ roomId, offer }) => {
-    socket.to(roomId).emit('offer', offer);
-  });
-
-  socket.on('answer', ({ roomId, answer }) => {
-    socket.to(roomId).emit('answer', answer);
-  });
-
-  socket.on('ice-candidate', ({ roomId, candidate }) => {
-    socket.to(roomId).emit('ice-candidate', candidate);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('🔴 User disconnected:', socket.id);
-  });
-});
-
-// ================== FILE UPLOAD & PROCESSING ==================
+// --- File Upload & CV Processing ---
 app.post('/upload', upload.array('cvs'), async (req, res) => {
   try {
     const results = [];
@@ -111,39 +88,25 @@ app.post('/upload', upload.array('cvs'), async (req, res) => {
     for (const file of req.files) {
       const candidateId = uuidv4();
 
-      // 1. Extract text from DOCX
-      const { value: resumeText } = await mammoth.extractRawText({
-        buffer: file.buffer
-      });
+      const { value: resumeText } = await mammoth.extractRawText({ buffer: file.buffer });
 
-      // 2. Send to Gemini
-      const geminiResponse = await model.generateContent([
-        {
-          text: `${BASE_PROMPT}\n\nRESUME:\n${resumeText}`
-        }
-      ]);
-
+      const geminiResponse = await model.generateContent([{ text: `${BASE_PROMPT}\n\nRESUME:\n${resumeText}` }]);
       const aiText = geminiResponse.response.text();
 
-      // 3. Parse AI JSON safely
-      let aiAnalysis = null;
+      let aiAnalysis;
       try {
         aiAnalysis = JSON.parse(aiText);
       } catch {
         aiAnalysis = { raw: aiText };
       }
 
-      // 4. Save everything to Firestore
       await admin.firestore().collection('candidates').doc(candidateId).set({
         fileName: file.originalname,
         aiAnalysis,
         uploadedAt: new Date(),
       });
 
-      results.push({
-        candidateId,
-        fileName: file.originalname,
-      });
+      results.push({ candidateId, fileName: file.originalname });
     }
 
     res.json({ success: true, results });
@@ -153,7 +116,7 @@ app.post('/upload', upload.array('cvs'), async (req, res) => {
   }
 });
 
-// ================== FETCH CANDIDATES ==================
+// --- Fetch Candidates ---
 app.get('/candidates', async (req, res) => {
   try {
     const snapshot = await admin.firestore()
@@ -161,11 +124,7 @@ app.get('/candidates', async (req, res) => {
       .orderBy('uploadedAt', 'desc')
       .get();
 
-    const candidates = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
+    const candidates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json(candidates);
   } catch (err) {
     console.error(err);
@@ -173,61 +132,55 @@ app.get('/candidates', async (req, res) => {
   }
 });
 
-// ================== SCHEDULE INTERVIEW & SEND EMAIL ==================
-
-app.post("/schedule", async (req, res) => {
+// --- Schedule Interview & Send Email ---
+app.post('/schedule', async (req, res) => {
   const { candidateEmail, candidateName, date, candidateId } = req.body;
+
+  if (!candidateEmail || !date) return res.status(400).json({ error: 'Email and date are required' });
+
   const id = uuidv4();
-  const password = uuidv4().slice(0, 8); 
-  if (!candidateEmail || !date) {
-    return res.status(400).json({ error: "Email and date are required" });
-  }
+  const password = uuidv4().slice(0, 8);
 
-  // 1️⃣ Here you can save the schedule in your database
-      await admin.firestore().collection('schedules').doc(candidateId).set({
-        candidateName,
-        date,
-        scheduledAt: date,
-        interviewId: id,
-        interviewPassword: password,
-        code: id+password,
-      });
-
+  // Save schedule to Firestore
+  await admin.firestore().collection('schedules').doc(candidateId).set({
+    candidateName,
+    date,
+    scheduledAt: date,
+    interviewId: id,
+    interviewPassword: password,
+    code: id + password,
+  });
 
   try {
-      let transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false, // Use TLS automatically
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-        family: 4, // Optional, force IPv4
-      });
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+      family: 4,
+    });
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: candidateEmail,
-      subject: "Interview Scheduled",
-      text: `Hello ${candidateName || ""},\n\nYour interview has been scheduled for ${new Date(
-        date
-      ).toLocaleString()}.
-      Join using /n
+      subject: 'Interview Scheduled',
+      text: `Hello ${candidateName || ""},\n\nYour interview has been scheduled for ${new Date(date).toLocaleString()}.
+      Join using:
       username: ${id}
       password: ${password}
-      \n\nBest regards,\nHR Team`,
-    };
+      
+      Best regards,
+      HR Team`,
+    });
 
-    await transporter.sendMail(mailOptions);
-
-    return res.json({ message: "Interview scheduled and email sent successfully!" });
+    res.json({ message: 'Interview scheduled and email sent successfully!' });
   } catch (error) {
-    console.error("Email error:", error);
-    return res.status(500).json({ error: "Failed to send email" });
+    console.error('Email error:', error);
+    res.status(500).json({ error: 'Failed to send email' });
   }
 });
 
+// --- Fetch Schedules ---
 app.get('/schedule', async (req, res) => {
   try {
     const snapshot = await admin.firestore()
@@ -235,19 +188,31 @@ app.get('/schedule', async (req, res) => {
       .orderBy('scheduledAt', 'desc')
       .get();
 
-    const schedules = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
+    const schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json(schedules);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch schedules' });
   }
 });
-// ================== START SERVER ==================
 
+// ================== SOCKET.IO ==================
+io.on('connection', (socket) => {
+  console.log(' User connected:', socket.id);
+
+  socket.on('join-room', (roomId) => {
+    socket.join(roomId);
+    console.log(`User joined room ${roomId}`);
+  });
+
+  socket.on('offer', ({ roomId, offer }) => socket.to(roomId).emit('offer', offer));
+  socket.on('answer', ({ roomId, answer }) => socket.to(roomId).emit('answer', answer));
+  socket.on('ice-candidate', ({ roomId, candidate }) => socket.to(roomId).emit('ice-candidate', candidate));
+
+  socket.on('disconnect', () => console.log(' User disconnected:', socket.id));
+});
+
+// ================== START SERVER ==================
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
