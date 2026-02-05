@@ -12,7 +12,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "models/gemini-2.5-flash",
 });
 app.use(express.json());
 app.use(cors());
@@ -44,6 +44,9 @@ Evaluation criteria (used internally for scoring):
 - Professionalism (email, language, structure)
 - Overall impact
 
+Return ONLY valid minified JSON.
+Do NOT include markdown.
+Do NOT include explanations.
 ---
 
 ### REQUIRED OUTPUT FORMAT (DO NOT CHANGE)
