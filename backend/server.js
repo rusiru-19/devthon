@@ -8,6 +8,9 @@ const multer = require('multer');
 const mammoth = require('mammoth');
 const { v4: uuidv4 } = require('uuid');
 const app = express();
+const nodemailer = require("nodemailer");
+const bodyParser = require("body-parser");
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -16,6 +19,7 @@ const model = genAI.getGenerativeModel({
 });
 app.use(express.json());
 app.use(cors());
+app.use(bodyParser.json());
 
 const BASE_PROMPT = `
 You are a professional CV evaluator and recruiter. Analyze CVs objectively and like a real hiring manager.
@@ -169,6 +173,57 @@ app.get('/candidates', async (req, res) => {
   }
 });
 
+// ================== SCHEDULE INTERVIEW & SEND EMAIL ==================
+
+app.post("/schedule", async (req, res) => {
+  const { candidateEmail, candidateName, date, candidateId } = req.body;
+  const id = uuidv4();
+  const password = uuidv4().slice(0, 8); 
+  if (!candidateEmail || !date) {
+    return res.status(400).json({ error: "Email and date are required" });
+  }
+
+  // 1️⃣ Here you can save the schedule in your database
+      await admin.firestore().collection('schedules').doc(candidateId).set({
+        candidateName,
+        date,
+        scheduledAt: date,
+        interviewId: id,
+        interviewPassword: password,
+        code: id+password,
+      });
+
+
+  try {
+    let transporter = nodemailer.createTransport({
+      service: "gmail", // or your email service
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD, // Use App Password for Gmail
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: candidateEmail,
+      subject: "Interview Scheduled",
+      text: `Hello ${candidateName || ""},\n\nYour interview has been scheduled for ${new Date(
+        date
+      ).toLocaleString()}.
+      Join using /n
+      username: ${id}
+      password: ${password}
+      \n\nBest regards,\nHR Team`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.json({ message: "Interview scheduled and email sent successfully!" });
+  } catch (error) {
+    console.error("Email error:", error);
+    return res.status(500).json({ error: "Failed to send email" });
+  }
+});
 // ================== START SERVER ==================
 
 server.listen(PORT, () => {

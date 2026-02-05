@@ -3,12 +3,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { Candidate } from '@/lib/types';
 import { Icons } from '@/components/Icon';
+import axios from 'axios';
+import { ca } from 'date-fns/locale';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 /* =======================
    Candidate Drawer
 ======================= */
+
 function CandidateDrawer({
   candidate,
   onClose,
@@ -18,8 +21,27 @@ function CandidateDrawer({
 }) {
   if (!candidate) return null;
 
-  const analysis = candidate.analysis;
+  const analysis = candidate.aiAnalysis;
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  const handleSchedule = () => {
+    if (!selectedDate) {
+      alert("Please select a date and time first!");
+      return;
+    }
+
+    const formattedDate = selectedDate.toLocaleString();
+    console.log(`Scheduling interview on ${formattedDate} for candidate ${candidate.id}`);
+    axios.post(`${API_URL}/schedule`, {
+      candidateId: candidate.id,
+      date: selectedDate.toISOString(),
+      candidateEmail: analysis?.candidate.email ,
+      candidateName: analysis?.candidate.full_name ,
+
+    })
+
+    alert(`Interview scheduled for ${formattedDate} & email sent!`);
+  };
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
@@ -37,6 +59,21 @@ function CandidateDrawer({
             <p className="text-sm text-slate-500">
               {analysis?.target_role ?? 'Unknown role'}
             </p>
+            <div className="flex flex-col gap-3">
+      <label className="text-sm font-medium">Select Interview Date & Time:</label>
+      <input
+        type="datetime-local"
+        className="border p-2 rounded w-full max-w-xs"
+        onChange={e => setSelectedDate(e.target.value ? new Date(e.target.value) : null)}
+      />
+
+      <button
+        onClick={handleSchedule}
+        className="bg-green-800 p-2 text-sm text-white hover:bg-green-700 rounded mt-2"
+      >
+        Schedule & Email Interview
+      </button>
+    </div>
           </div>
           <button onClick={onClose}>
             <Icons.X />
@@ -52,6 +89,7 @@ function CandidateDrawer({
             <>
               {/* Score */}
               <div className="flex items-center gap-4">
+               
                 <div className="text-4xl font-bold text-blue-600">
                   {analysis.cv_score.score}%
                 </div>
@@ -237,18 +275,14 @@ export  function Candidates() {
                 <tr>
                   <th className="px-6 py-3 text-left">Candidate</th>
                   <th className="px-6 py-3">Score</th>
-                  <th className="px-6 py-3">Uploaded</th>
+                  <th className="px-6 py-3">Rating</th>
                 </tr>
               </thead>
               <tbody>
                   {candidates.map(c => {
-                const analysis = parseAnalysis(c); 
-                const score = analysis?.cv_score?.score ?? '—';
-                const name = analysis?.candidate?.full_name ?? c.fileName;
-                const uploadedDate = c.uploadedAt
-                  ? new Date(c.uploadedAt).toLocaleDateString()
-                  : '—';
-
+                const score = c.aiAnalysis?.cv_score?.score ?? '—';
+                const name = c.aiAnalysis?.candidate?.full_name ?? c.fileName;
+                const rating = c.aiAnalysis?.cv_score?.rating ?? '—';
                 return (
                   <tr
                     key={c.id}
@@ -257,10 +291,20 @@ export  function Candidates() {
                   >
                     <td className="px-6 py-4">{name}</td>
                     <td className="px-6 py-4 text-center">{score}</td>
-                    <td className="px-6 py-4 text-center text-slate-500">
-                      {uploadedDate}
-                    </td>
-                  </tr>
+                    <td
+                  className={`px-6 py-4 text-center font-medium ${
+                    rating === 'Excellent' 
+                      ? 'text-green-600'
+                      : rating === 'Strong'
+                      ? 'text-green-600'
+                      : rating === 'Average'
+                      ? 'text-yellow-600'
+                      : 'text-slate-500'
+                  }`}
+                        >
+                {rating}
+              </td>
+                                </tr>
                 );
               })}
               </tbody>

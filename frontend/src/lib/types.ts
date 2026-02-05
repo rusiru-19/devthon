@@ -92,5 +92,5 @@ export interface Candidate {
   fileName: string;
   uploadedAt: string;
   resumeText: string;
-  analysis?: CVAnalysis;
+  aiAnalysis?: CVAnalysis;
 }
