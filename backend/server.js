@@ -103,7 +103,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = 3001;
+const PORT = 3000;
 
 admin.initializeApp({
   credential: admin.credential.cert(require('./serviceAccountKey.json')),
