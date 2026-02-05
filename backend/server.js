@@ -195,14 +195,20 @@ app.post("/schedule", async (req, res) => {
 
 
   try {
-    let transporter = nodemailer.createTransport({
-      service: "gmail", // or your email service
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD, // Use App Password for Gmail
-      },
-    });
-
+        let transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true, // SSL
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+        // Force IPv4
+        connectionTimeout: 10000,
+        debug: true,
+        logger: true,
+        family: 4
+      });
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: candidateEmail,
