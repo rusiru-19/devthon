@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
-export default function VideoCallPage(roomId: any) {
+export default function VideoCallPage({ roomId }: { roomId: any }) {
+  console.log("Room ID:", roomId);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -73,7 +74,8 @@ export default function VideoCallPage(roomId: any) {
     };
   }, []);
 
-  const startCall = async () => {
+   const startCall = async () => {
+    console.log("Active Room:", roomId);
     const offer = await peerRef.current?.createOffer();
     await peerRef.current?.setLocalDescription(offer!);
     socketRef.current?.emit("offer", { roomId, offer });

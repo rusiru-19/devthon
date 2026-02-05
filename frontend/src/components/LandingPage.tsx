@@ -16,7 +16,8 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
     const [id, setId] = useState('');
     const handleJoinMeeting = (e: React.FormEvent) => {
         e.preventDefault();
-        setId(meetingId+password);
+        const id = meetingId + password;
+        setId(id);
          setJoined(true);
 
     };

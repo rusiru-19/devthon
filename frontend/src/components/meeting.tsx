@@ -45,7 +45,7 @@ export default function Meeting() {
               <td className="border px-4 py-2">
                <button
                 className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                onClick={() => setActiveRoom(item.interviewId)}
+                onClick={() => setActiveRoom(item.code)}
               >
                 Join
               </button>
@@ -59,7 +59,7 @@ export default function Meeting() {
 }
 
 
-function Call({ roomId }: { roomId: string }) {
+function Call({ roomId }: { roomId: any }) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -110,11 +110,12 @@ function Call({ roomId }: { roomId: string }) {
   }, [roomId]);
 
   const startCall = async () => {
+    console.log("Active Room:", roomId);
     const offer = await peerRef.current?.createOffer();
     await peerRef.current?.setLocalDescription(offer!);
     socketRef.current?.emit("offer", { roomId, offer });
   };
-
+  
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center gap-6">
       <h1 className="text-2xl font-semibold">1-to-1 Video Call</h1>
