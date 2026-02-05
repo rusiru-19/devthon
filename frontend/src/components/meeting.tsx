@@ -1,16 +1,61 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import axios from "axios";
+import { use, useEffect, useRef , useState} from "react";
 import { io, Socket } from "socket.io-client";
 
 export default function Meeting() {
+  const [data, setData] = useState<any[] | null>(null);
+  const getdata = async () => {
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    axios.get(url+"/schedule").then((res) => {
+      console.log(res.data);
+      setData(res.data);
+    }).catch((err) => {      console.log(err);
+    });
+  }
+  useEffect(() => {
+    getdata();
+  }, []);
+
+  return (
+    <div className="min-h-screen  items-center justify-center gap-6">
+      <h1 className="text-2xl font-semibold">Meeting Schedule</h1>
+      <table className="table-auto w-full text-left">
+        <thead>
+          <tr>
+            <th className="px-4 py-2">Candidate Name</th>
+            <th className="px-4 py-2">Time</th>
+            <th className="px-4 py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data ? data.map((item: any) => (
+            <tr key={item.id}>
+              <td className="border px-4 py-2">{item.candidateName}</td> 
+              <td className="border px-4 py-2">{item.scheduledAt}</td>
+              <td className="border px-4 py-2">
+                <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600" onClick={() => Call(item.interviewId)}>
+                  Join
+                </button>
+              </td>
+            </tr>
+          )) : <tr><td colSpan={3} className="text-center py-4">Loading...</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+function Call(roomId: string) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
 
-  const roomId = "room-123"; // same room on both clients
+   // same room on both clients
   const url = process.env.NEXT_PUBLIC_API_URL;;
 
   useEffect(() => {

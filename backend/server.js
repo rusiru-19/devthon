@@ -227,6 +227,25 @@ app.post("/schedule", async (req, res) => {
     return res.status(500).json({ error: "Failed to send email" });
   }
 });
+
+app.get('/schedule', async (req, res) => {
+  try {
+    const snapshot = await admin.firestore()
+      .collection('schedules')
+      .orderBy('scheduledAt', 'desc')
+      .get();
+
+    const schedules = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.json(schedules);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch schedules' });
+  }
+});
 // ================== START SERVER ==================
 
 server.listen(PORT, () => {
