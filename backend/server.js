@@ -211,7 +211,25 @@ app.post('/upload', upload.array('cvs'), async (req, res) => {
   }
 });
 
+// ================== FETCH CANDIDATES ==================
+app.get('/candidates', async (req, res) => {
+  try {
+    const snapshot = await admin.firestore()
+      .collection('candidates')
+      .orderBy('uploadedAt', 'desc')
+      .get();
 
+    const candidates = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.json(candidates);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch candidates' });
+  }
+});
 
 // ================== START SERVER ==================
 

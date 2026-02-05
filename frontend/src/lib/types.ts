@@ -49,3 +49,48 @@ export interface AIAnalysisResult {
   matchScore: number;
   recommendedQuestions: string[];
 }
+
+export interface CVAnalysis {
+  candidate: {
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    location: string | null;
+    linkedin: string | null;
+    portfolio: string | null;
+  };
+  target_role: string | null;
+  summary: string | null;
+  skills: {
+    technical: string[];
+    soft: string[];
+    tools: string[];
+  };
+  experience: {
+    job_title: string | null;
+    company: string | null;
+    duration: string | null;
+    key_points: string[];
+  }[];
+  education: {
+    degree: string | null;
+    institution: string | null;
+    year: string | null;
+  }[];
+  certifications: string[];
+  strengths: string[];
+  weaknesses: string[];
+  improvement_suggestions: string[];
+  cv_score: {
+    score: number;
+    rating: string | null;
+  };
+}
+
+export interface Candidate {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  resumeText: string;
+  analysis?: CVAnalysis;
+}
