@@ -143,6 +143,7 @@ export  function Candidates() {
     setLoading(true);
     const res = await fetch(`${API_URL}/candidates`);
     const data = await res.json();
+    console.log('Fetched candidates:', data);
     setCandidates(data);
     setLoading(false);
   };
@@ -167,6 +168,21 @@ export  function Candidates() {
     setUploading(false);
     fetchCandidates();
   };
+  const parseAnalysis = (candidate: any) => {
+  try {
+    if (!candidate.aiAnalysis.raw) {
+      console.log('No AI analysis found for candidate');
+      return null;
+    }
+    const guddata = JSON.parse(candidate.aiAnalysis.raw)
+        console.log('hutta', guddata);
+
+    return guddata;
+  } catch (err) {
+    console.log('Failed to parse AI analysis for candidate', candidate.id, err);
+    return null;
+  }
+};
 
   return (
     <>
@@ -225,26 +241,28 @@ export  function Candidates() {
                 </tr>
               </thead>
               <tbody>
-                {candidates.map(c => (
+                  {candidates.map(c => {
+                const analysis = parseAnalysis(c); 
+                const score = analysis?.cv_score?.score ?? '—';
+                const name = analysis?.candidate?.full_name ?? c.fileName;
+                const uploadedDate = c.uploadedAt
+                  ? new Date(c.uploadedAt).toLocaleDateString()
+                  : '—';
+
+                return (
                   <tr
                     key={c.id}
                     className="border-t hover:bg-blue-50 cursor-pointer"
                     onClick={() => setSelected(c)}
                   >
-                    <td className="px-6 py-4">
-                      {c.analysis?.candidate.full_name ??
-                        c.fileName}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {c.analysis?.cv_score.score ?? '—'}
-                    </td>
+                    <td className="px-6 py-4">{name}</td>
+                    <td className="px-6 py-4 text-center">{score}</td>
                     <td className="px-6 py-4 text-center text-slate-500">
-                      {new Date(
-                        c.uploadedAt
-                      ).toLocaleDateString()}
+                      {uploadedDate}
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           )}

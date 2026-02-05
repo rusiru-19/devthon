@@ -18,80 +18,19 @@ app.use(express.json());
 app.use(cors());
 
 const BASE_PROMPT = `
-  You are a professional CV evaluator and recruiter with experience in hiring across technical and non-technical roles.
-
-Your task:
-- Analyze the given CV content professionally and objectively
-- Extract key information
-- Evaluate overall quality, clarity, relevance, and completeness
-- Assign a final score out of 100
-- Identify strengths, weaknesses, and improvement suggestions
+You are a professional CV evaluator and recruiter. Analyze CVs objectively and like a real hiring manager.
 
 Rules:
-1. Always respond ONLY in valid JSON
-2. Do NOT include explanations outside JSON
-3. Follow the exact JSON structure provided below
-4. If a field is missing in the CV, return null or an empty array
-5. Be consistent and unbiased
-6. Think like a real hiring manager
+- Return ONLY valid JSON in a single line with no spaces or line breaks.
+- Escape all double quotes inside strings with backslash (\").
+- Include all relevant experience/projects as separate objects in the "experience" array.
+- If a field is missing, return null for text fields and empty array for lists.
+- Use cv_score.rating as one of: "Outstanding", "Strong", "Average", "Weak".
+- Do NOT include explanations, markdown, or text outside JSON.
 
-Evaluation criteria (used internally for scoring):
-- Clarity & formatting
-- Role relevance
-- Skills quality & relevance
-- Experience & achievements
-- Education & certifications
-- Professionalism (email, language, structure)
-- Overall impact
+Follow this exact JSON structure:
 
-Return ONLY valid minified JSON.
-Do NOT include markdown.
-Do NOT include explanations.
----
-
-### REQUIRED OUTPUT FORMAT (DO NOT CHANGE)
-
-{
-  "candidate": {
-    "full_name": null,
-    "email": null,
-    "phone": null,
-    "location": null,
-    "linkedin": null,
-    "portfolio": null
-  },
-  "target_role": null,
-  "summary": null,
-  "skills": {
-    "technical": [],
-    "soft": [],
-    "tools": []
-  },
-  "experience": [
-    {
-      "job_title": null,
-      "company": null,
-      "duration": null,
-      "key_points": []
-    }
-  ],
-  "education": [
-    {
-      "degree": null,
-      "institution": null,
-      "year": null
-    }
-  ],
-  "certifications": [],
-  "strengths": [],
-  "weaknesses": [],
-  "improvement_suggestions": [],
-  "cv_score": {
-    "score": 0,
-    "rating": null
-  }
-}
-
+{ "candidate": { "full_name": null, "email": null, "phone": null, "location": null, "linkedin": null, "portfolio": null }, "target_role": null, "summary": null, "skills": { "technical": [], "soft": [], "tools": [] }, "experience": [ { "job_title": null, "company": null, "duration": null, "key_points": [] } ], "education": [ { "degree": null, "institution": null, "year": null } ], "certifications": [], "strengths": [], "weaknesses": [], "improvement_suggestions": [], "cv_score": { "score": 0, "rating": null } }
 
 `;
 
@@ -193,7 +132,6 @@ app.post('/upload', upload.array('cvs'), async (req, res) => {
       // 4. Save everything to Firestore
       await admin.firestore().collection('candidates').doc(candidateId).set({
         fileName: file.originalname,
-        resumeText,
         aiAnalysis,
         uploadedAt: new Date(),
       });
