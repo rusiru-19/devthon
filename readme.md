@@ -73,6 +73,7 @@ This solution reduces manual effort, minimizes bias, and offers a complete end-t
 7. **Online Interviews:** Candidates join interviews through the platform’s integrated video system, completing the recruitment workflow.  
 
 ---
+[![Watch the video](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=dWX1l1hmb2U)
 
 ## Contact
 
