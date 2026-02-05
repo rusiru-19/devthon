@@ -110,7 +110,7 @@ export default function Home() {
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <Icons.Sparkles className="text-white w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold text-slate-900">TalentFlow AI</span>
+            <span className="text-2xl font-bold text-slate-900">Recruiter AI</span>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">

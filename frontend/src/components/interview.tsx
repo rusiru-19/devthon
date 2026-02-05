@@ -3,14 +3,13 @@
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
-export default function VideoCallPage() {
+export default function VideoCallPage(roomId: any) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
 
-  const roomId = "room-123"; // same room on both clients
   const url = process.env.NEXT_PUBLIC_API_URL;;
   useEffect(() => {
     socketRef.current = io(url);

@@ -6,6 +6,8 @@ import { io, Socket } from "socket.io-client";
 
 export default function Meeting() {
   const [data, setData] = useState<any[] | null>(null);
+  const [activeRoom, setActiveRoom] = useState<string | null>(null);
+
   const getdata = async () => {
     const url = process.env.NEXT_PUBLIC_API_URL;
     axios.get(url+"/schedule").then((res) => {
@@ -20,12 +22,16 @@ export default function Meeting() {
 
   return (
     <div className="min-h-screen  items-center justify-center gap-6">
+      {activeRoom && <Call roomId={activeRoom} />}
+
       <h1 className="text-2xl font-semibold">Meeting Schedule</h1>
       <table className="table-auto w-full text-left">
         <thead>
           <tr>
             <th className="px-4 py-2">Candidate Name</th>
             <th className="px-4 py-2">Time</th>
+            <th className="px-4 py-2">Interview ID</th>
+            <th className="px-4 py-2">Interview Password</th>
             <th className="px-4 py-2">Actions</th>
           </tr>
         </thead>
@@ -34,10 +40,15 @@ export default function Meeting() {
             <tr key={item.id}>
               <td className="border px-4 py-2">{item.candidateName}</td> 
               <td className="border px-4 py-2">{item.scheduledAt}</td>
+              <td className="border px-4 py-2">{item.interviewId}</td>
+              <td className="border px-4 py-2">{item.interviewPassword}</td>
               <td className="border px-4 py-2">
-                <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600" onClick={() => Call(item.interviewId)}>
-                  Join
-                </button>
+               <button
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                onClick={() => setActiveRoom(item.interviewId)}
+              >
+                Join
+              </button>
               </td>
             </tr>
           )) : <tr><td colSpan={3} className="text-center py-4">Loading...</td></tr>}
@@ -48,57 +59,35 @@ export default function Meeting() {
 }
 
 
-function Call(roomId: string) {
+function Call({ roomId }: { roomId: string }) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
 
-   // same room on both clients
-  const url = process.env.NEXT_PUBLIC_API_URL;;
-
   useEffect(() => {
-    socketRef.current = io(url!); 
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    socketRef.current = io(url!);
 
     peerRef.current = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // Join room
     socketRef.current.emit("join-room", roomId);
 
-    // Get media
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      stream.getTracks().forEach(track => peerRef.current?.addTrack(track, stream));
+    });
 
-        stream.getTracks().forEach((track) => {
-          peerRef.current?.addTrack(track, stream);
-        });
-      });
-
-    // Remote stream
     peerRef.current.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
     };
 
-    // ICE candidates
     peerRef.current.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketRef.current?.emit("ice-candidate", {
-          roomId,
-          candidate: event.candidate,
-        });
-      }
+      if (event.candidate) socketRef.current?.emit("ice-candidate", { roomId, candidate: event.candidate });
     };
 
-    // Socket events
     socketRef.current.on("offer", async (offer) => {
       await peerRef.current?.setRemoteDescription(offer);
       const answer = await peerRef.current?.createAnswer();
@@ -118,7 +107,7 @@ function Call(roomId: string) {
       socketRef.current?.disconnect();
       peerRef.current?.close();
     };
-  }, []);
+  }, [roomId]);
 
   const startCall = async () => {
     const offer = await peerRef.current?.createOffer();
@@ -131,25 +120,11 @@ function Call(roomId: string) {
       <h1 className="text-2xl font-semibold">1-to-1 Video Call</h1>
 
       <div className="flex gap-4">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-72 rounded-xl bg-black"
-        />
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-72 rounded-xl bg-black"
-        />
+        <video ref={localVideoRef} autoPlay muted playsInline className="w-72 rounded-xl bg-black" />
+        <video ref={remoteVideoRef} autoPlay playsInline className="w-72 rounded-xl bg-black" />
       </div>
 
-      <button
-        onClick={startCall}
-        className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-      >
+      <button onClick={startCall} className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700">
         Start Call
       </button>
     </div>

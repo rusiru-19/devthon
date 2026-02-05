@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Icons } from './Icon';
 import VideoCallPage from './interview';
+import { se } from 'date-fns/locale';
 
 interface LandingPageProps {
     onLoginClick: () => void;
@@ -12,9 +13,10 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
     const [meetingId, setMeetingId] = useState('');
     const [password, setPassword] = useState('');
     const [joined, setJoined] = useState(false);
-
+    const [id, setId] = useState('');
     const handleJoinMeeting = (e: React.FormEvent) => {
         e.preventDefault();
+        setId(meetingId+password);
          setJoined(true);
 
     };
@@ -26,10 +28,8 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
             {/* Navbar */}
             <nav className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <Icons.Sparkles className="text-white w-5 h-5" />
-                    </div>
-                    <span className="text-xl font-bold text-slate-800">TalentFlow</span>
+               
+                    <span className="text-xl font-bold text-slate-800">Recruiter AI</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <button
@@ -104,7 +104,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         </div>
             )}
 
-    {joined && <VideoCallPage />}
+    {joined && <VideoCallPage roomId={id} />}
         </>
     );
 }
