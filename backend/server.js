@@ -8,8 +8,90 @@ const multer = require('multer');
 const mammoth = require('mammoth');
 const { v4: uuidv4 } = require('uuid');
 const app = express();
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+});
 app.use(express.json());
 app.use(cors());
+
+const BASE_PROMPT = `
+  You are a professional CV evaluator and recruiter with experience in hiring across technical and non-technical roles.
+
+Your task:
+- Analyze the given CV content professionally and objectively
+- Extract key information
+- Evaluate overall quality, clarity, relevance, and completeness
+- Assign a final score out of 100
+- Identify strengths, weaknesses, and improvement suggestions
+
+Rules:
+1. Always respond ONLY in valid JSON
+2. Do NOT include explanations outside JSON
+3. Follow the exact JSON structure provided below
+4. If a field is missing in the CV, return null or an empty array
+5. Be consistent and unbiased
+6. Think like a real hiring manager
+
+Evaluation criteria (used internally for scoring):
+- Clarity & formatting
+- Role relevance
+- Skills quality & relevance
+- Experience & achievements
+- Education & certifications
+- Professionalism (email, language, structure)
+- Overall impact
+
+---
+
+### REQUIRED OUTPUT FORMAT (DO NOT CHANGE)
+
+{
+  "candidate": {
+    "full_name": null,
+    "email": null,
+    "phone": null,
+    "location": null,
+    "linkedin": null,
+    "portfolio": null
+  },
+  "target_role": null,
+  "summary": null,
+  "skills": {
+    "technical": [],
+    "soft": [],
+    "tools": []
+  },
+  "experience": [
+    {
+      "job_title": null,
+      "company": null,
+      "duration": null,
+      "key_points": []
+    }
+  ],
+  "education": [
+    {
+      "degree": null,
+      "institution": null,
+      "year": null
+    }
+  ],
+  "certifications": [],
+  "strengths": [],
+  "weaknesses": [],
+  "improvement_suggestions": [],
+  "cv_score": {
+    "score": 0,
+    "rating": null
+  }
+}
+
+
+`;
+
 
 const server = http.createServer(app);
 const upload = multer({ storage: multer.memoryStorage() });
@@ -21,7 +103,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = 3000;
+const PORT = 3001;
 
 admin.initializeApp({
   credential: admin.credential.cert(require('./serviceAccountKey.json')),
@@ -29,7 +111,7 @@ admin.initializeApp({
 
 
 app.get('/', (req, res) => {
-  res.json({ message: 'Express server running' });
+  res.json({ message: 'Express server running', timestamp: new Date() });
 });
 
 // Login route
@@ -83,22 +165,40 @@ app.post('/upload', upload.array('cvs'), async (req, res) => {
     for (const file of req.files) {
       const candidateId = uuidv4();
 
-      // Extract text from DOCX
+      // 1. Extract text from DOCX
       const { value: resumeText } = await mammoth.extractRawText({
         buffer: file.buffer
       });
 
-   
+      // 2. Send to Gemini
+      const geminiResponse = await model.generateContent([
+        {
+          text: `${BASE_PROMPT}\n\nRESUME:\n${resumeText}`
+        }
+      ]);
 
-      // Save extracted text to Firestore
+      const aiText = geminiResponse.response.text();
+
+      // 3. Parse AI JSON safely
+      let aiAnalysis = null;
+      try {
+        aiAnalysis = JSON.parse(aiText);
+      } catch {
+        aiAnalysis = { raw: aiText };
+      }
+
+      // 4. Save everything to Firestore
       await admin.firestore().collection('candidates').doc(candidateId).set({
-        resumeText,
         fileName: file.originalname,
+        resumeText,
+        aiAnalysis,
         uploadedAt: new Date(),
-        storagePath: `cvs/${candidateId}.docx`,
       });
 
-      results.push({ candidateId, fileName: file.originalname });
+      results.push({
+        candidateId,
+        fileName: file.originalname,
+      });
     }
 
     res.json({ success: true, results });
